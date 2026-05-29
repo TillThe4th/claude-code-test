@@ -87,13 +87,20 @@ body {
 /* ── Project header ──────────────────────────────── */
 .project-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: .5rem;
   margin-bottom: 1rem;
 }
 
-.project-name-input {
+.project-titles {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.project-name-input {
+  width: 100%;
   font-size: 1.0625rem;
   font-weight: 700;
   color: var(--text);
@@ -106,6 +113,20 @@ body {
 }
 .project-name-input:hover,
 .project-name-input:focus { border-bottom-color: var(--accent); }
+
+.project-subtitle-input {
+  width: 100%;
+  font-size: .875rem;
+  color: var(--muted);
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  padding: .15rem 0;
+  outline: none;
+  transition: border-color .15s;
+}
+.project-subtitle-input:hover,
+.project-subtitle-input:focus { border-bottom-color: var(--border); }
 
 .btn-icon {
   background: none;
@@ -187,6 +208,36 @@ body {
 /* ── Timeline section ────────────────────────────── */
 .timeline-section { }
 
+/* Timeline date bounds row */
+.timeline-bounds {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  margin-bottom: .75rem;
+  flex-wrap: wrap;
+}
+
+.tl-bound-field {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .8125rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tl-bound-input {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: .25rem .4rem;
+  font-size: .8125rem;
+  background: var(--bg);
+  outline: none;
+  color: var(--text);
+  transition: border-color .15s, background .15s;
+}
+.tl-bound-input:focus { border-color: var(--accent); background: #fff; }
+
 .timeline-wrapper {
   padding: 18px 0 128px;
   position: relative;
@@ -245,10 +296,18 @@ body {
   flex-shrink: 0;
   margin-top: -6px; /* centers 16px dot on 4px track: (16-4)/2 */
   border: 2px solid #fff;
-  transition: transform .15s;
+  cursor: grab;
+  transition: transform .15s, box-shadow .15s;
 }
 .marker:hover .marker-dot,
 .marker:focus-within .marker-dot { transform: scale(1.25); }
+
+.marker.dragging { z-index: 20; }
+.marker.dragging .marker-dot {
+  cursor: grabbing;
+  transform: scale(1.4);
+  box-shadow: 0 4px 14px rgba(0,0,0,.25);
+}
 
 .marker-body {
   display: flex;

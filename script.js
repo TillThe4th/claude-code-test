@@ -10,11 +10,29 @@ function genId() {
   return crypto.randomUUID?.() ?? (Date.now().toString(36) + Math.random().toString(36).slice(2));
 }
 
+function defaultStart() {
+  const d = new Date();
+  d.setDate(1);
+  return d.toISOString().slice(0, 10);
+}
+
+function defaultEnd() {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 6);
+  return d.toISOString().slice(0, 10);
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) state = JSON.parse(raw);
   } catch (_) { state = { projects: [] }; }
+  // Migrate older data missing new fields
+  state.projects.forEach(p => {
+    p.subtitle      ??= '';
+    p.timelineStart ??= defaultStart();
+    p.timelineEnd   ??= defaultEnd();
+  });
 }
 
 function saveState() {
@@ -23,22 +41,70 @@ function saveState() {
 
 // ── Timeline math ────────────────────────────────────────────
 
-function calcMarkerPositions(markers) {
-  if (!markers.length) return [];
-  if (markers.length === 1) return [{ ...markers[0], left: 50 }];
-
-  const times = markers.map(m => +new Date(m.date)).filter(t => !isNaN(t));
-  if (!times.length) return markers.map(m => ({ ...m, left: 50 }));
-
-  const min = Math.min(...times);
-  const max = Math.max(...times);
-
+function calcMarkerPositions(markers, startDate, endDate) {
+  const minT = +new Date(startDate);
+  const maxT = +new Date(endDate);
+  if (isNaN(minT) || isNaN(maxT) || maxT <= minT) {
+    return markers.map(m => ({ ...m, left: 50 }));
+  }
   return markers.map(m => {
     const t = +new Date(m.date);
-    const left = isNaN(t) || max === min
+    const left = isNaN(t)
       ? 50
-      : PADDING + ((t - min) / (max - min)) * (100 - 2 * PADDING);
-    return { ...m, left };
+      : PADDING + ((t - minT) / (maxT - minT)) * (100 - 2 * PADDING);
+    return { ...m, left: Math.max(0, Math.min(100, left)) };
+  });
+}
+
+// ── Drag helpers ─────────────────────────────────────────────
+
+function calcPct(clientX, rect) {
+  return Math.max(0, Math.min(100, (clientX - rect.left) / rect.width * 100));
+}
+
+function pctToDate(pct, minT, maxT) {
+  const t = minT + ((pct - PADDING) / (100 - 2 * PADDING)) * (maxT - minT);
+  return new Date(Math.round(t)).toISOString().slice(0, 10);
+}
+
+function attachDrag(dot, markerEl, projectId, markerId) {
+  let active = false, trackRect, minT, maxT;
+
+  dot.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    dot.setPointerCapture(e.pointerId);
+    active = true;
+    trackRect = markerEl.parentElement.getBoundingClientRect();
+    const p = state.projects.find(x => x.id === projectId);
+    minT = +new Date(p.timelineStart);
+    maxT = +new Date(p.timelineEnd);
+    markerEl.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+  });
+
+  dot.addEventListener('pointermove', e => {
+    if (!active) return;
+    const pct = calcPct(e.clientX, trackRect);
+    markerEl.style.left = pct + '%';
+    const di = markerEl.querySelector('.marker-date-input');
+    if (di) di.value = pctToDate(pct, minT, maxT);
+  });
+
+  dot.addEventListener('pointerup', e => {
+    if (!active) return;
+    active = false;
+    markerEl.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    updateMarker(projectId, markerId, {
+      date: pctToDate(calcPct(e.clientX, trackRect), minT, maxT)
+    });
+  });
+
+  dot.addEventListener('pointercancel', () => {
+    active = false;
+    markerEl.classList.remove('dragging');
+    document.body.style.userSelect = '';
   });
 }
 
@@ -49,6 +115,9 @@ function addProject() {
   state.projects.push({
     id: genId(),
     name: 'Neues Projekt',
+    subtitle: '',
+    timelineStart: defaultStart(),
+    timelineEnd: defaultEnd(),
     budget: { total: 0, used: 0 },
     markers: [{ id: genId(), label: 'Start', date: today, color: COLORS[0] }]
   });
@@ -104,6 +173,9 @@ function renderProjectHeader(p) {
   const header = document.createElement('div');
   header.className = 'project-header';
 
+  const titles = document.createElement('div');
+  titles.className = 'project-titles';
+
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
   nameInput.className = 'project-name-input';
@@ -114,13 +186,25 @@ function renderProjectHeader(p) {
     if (proj) { proj.name = e.target.value; saveState(); }
   });
 
+  const subtitleInput = document.createElement('input');
+  subtitleInput.type = 'text';
+  subtitleInput.className = 'project-subtitle-input';
+  subtitleInput.value = p.subtitle;
+  subtitleInput.placeholder = 'Untertitel hinzufügen…';
+  subtitleInput.addEventListener('input', e => {
+    const proj = state.projects.find(x => x.id === p.id);
+    if (proj) { proj.subtitle = e.target.value; saveState(); }
+  });
+
+  titles.append(nameInput, subtitleInput);
+
   const removeBtn = document.createElement('button');
   removeBtn.className = 'btn-icon remove-project-btn';
   removeBtn.title = 'Projekt entfernen';
   removeBtn.textContent = '✕';
   removeBtn.addEventListener('mousedown', e => { e.preventDefault(); removeProject(p.id); });
 
-  header.append(nameInput, removeBtn);
+  header.append(titles, removeBtn);
   return header;
 }
 
@@ -134,7 +218,6 @@ function renderBudget(p) {
   const overBudget = total > 0 && used > total;
   const pct = total > 0 ? Math.min((used / total) * 100, 100) : (used > 0 ? 100 : 0);
 
-  // Input row
   const row = document.createElement('div');
   row.className = 'budget-inputs';
 
@@ -167,7 +250,6 @@ function renderBudget(p) {
     row.append(warn);
   }
 
-  // Progress bar
   const track = document.createElement('div');
   track.className = 'budget-bar-track';
   const fill = document.createElement('div');
@@ -175,13 +257,42 @@ function renderBudget(p) {
   fill.style.width = pct + '%';
   track.append(fill);
 
-  // Percentage label
   const pctLabel = document.createElement('div');
   pctLabel.className = 'budget-pct';
   if (total > 0) pctLabel.textContent = Math.round((used / total) * 100) + ' %';
 
   section.append(row, track, pctLabel);
   return section;
+}
+
+// ── Render: timeline bounds ──────────────────────────────────
+
+function renderTimelineBounds(p) {
+  const row = document.createElement('div');
+  row.className = 'timeline-bounds';
+
+  function makeDateField(labelText, field, value) {
+    const wrap = document.createElement('label');
+    wrap.className = 'tl-bound-field';
+    const span = document.createElement('span');
+    span.textContent = labelText;
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.className = 'tl-bound-input';
+    input.value = value;
+    input.addEventListener('change', e => {
+      const proj = state.projects.find(x => x.id === p.id);
+      if (proj) { proj[field] = e.target.value; saveState(); render(); }
+    });
+    wrap.append(span, input);
+    return wrap;
+  }
+
+  row.append(
+    makeDateField('Beginn', 'timelineStart', p.timelineStart),
+    makeDateField('Ende', 'timelineEnd', p.timelineEnd)
+  );
+  return row;
 }
 
 // ── Render: single marker ────────────────────────────────────
@@ -200,7 +311,6 @@ function renderMarker(p, m) {
   const body = document.createElement('div');
   body.className = 'marker-body';
 
-  // Label input — uncontrolled: saves on input, no re-render
   const labelInput = document.createElement('input');
   labelInput.type = 'text';
   labelInput.className = 'marker-label-input';
@@ -213,14 +323,12 @@ function renderMarker(p, m) {
     if (mark) { mark.label = e.target.value; saveState(); }
   });
 
-  // Date input — triggers re-render (repositions all markers)
   const dateInput = document.createElement('input');
   dateInput.type = 'date';
   dateInput.className = 'marker-date-input';
   dateInput.value = m.date;
   dateInput.addEventListener('change', e => updateMarker(p.id, m.id, { date: e.target.value }));
 
-  // Color picker chips
   const colorPicker = document.createElement('div');
   colorPicker.className = 'color-picker';
   COLORS.forEach(c => {
@@ -240,6 +348,8 @@ function renderMarker(p, m) {
 
   body.append(labelInput, dateInput, colorPicker, removeBtn);
   el.append(dot, body);
+
+  attachDrag(dot, el, p.id, m.id);
   return el;
 }
 
@@ -252,16 +362,18 @@ function renderTimeline(p) {
   const wrapper = document.createElement('div');
   wrapper.className = 'timeline-wrapper';
 
+  const track = document.createElement('div');
+  track.className = 'timeline-track';
+
   if (p.markers.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'timeline-empty';
     empty.textContent = 'Noch keine Meilensteine vorhanden.';
-    wrapper.append(empty);
+    wrapper.append(renderTimelineBounds(p), empty);
   } else {
-    const track = document.createElement('div');
-    track.className = 'timeline-track';
-    calcMarkerPositions(p.markers).forEach(m => track.append(renderMarker(p, m)));
-    wrapper.append(track);
+    calcMarkerPositions(p.markers, p.timelineStart, p.timelineEnd)
+      .forEach(m => track.append(renderMarker(p, m)));
+    wrapper.append(renderTimelineBounds(p), track);
   }
 
   const addBtn = document.createElement('button');
