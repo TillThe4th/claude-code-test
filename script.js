@@ -2,7 +2,7 @@
 
 const STORAGE_KEY = 'project-tracker-v1';
 const COLORS = ['#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4'];
-const PADDING = 10; // % left/right margin on timeline
+const PADDING = 10;
 
 let state = { projects: [] };
 
@@ -11,15 +11,17 @@ function genId() {
 }
 
 function defaultStart() {
-  const d = new Date();
-  d.setDate(1);
+  const d = new Date(); d.setDate(1);
   return d.toISOString().slice(0, 10);
 }
 
 function defaultEnd() {
-  const d = new Date();
-  d.setMonth(d.getMonth() + 6);
+  const d = new Date(); d.setMonth(d.getMonth() + 6);
   return d.toISOString().slice(0, 10);
+}
+
+function fmtDate(isoDate) {
+  return new Date(isoDate).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function loadState() {
@@ -27,11 +29,14 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) state = JSON.parse(raw);
   } catch (_) { state = { projects: [] }; }
-  // Migrate older data missing new fields
   state.projects.forEach(p => {
     p.subtitle      ??= '';
     p.timelineStart ??= defaultStart();
     p.timelineEnd   ??= defaultEnd();
+    if (!p.timelines) {
+      p.timelines = [{ id: genId(), name: 'Zeitleiste 1', markers: p.markers ?? [] }];
+      delete p.markers;
+    }
   });
 }
 
@@ -67,14 +72,15 @@ function pctToDate(pct, minT, maxT) {
   return new Date(Math.round(t)).toISOString().slice(0, 10);
 }
 
-function attachDrag(dot, markerEl, projectId, markerId) {
-  let active = false, trackRect, minT, maxT;
+function attachDrag(dot, markerEl, projectId, timelineId, markerId) {
+  let active = false, hasDragged = false, trackRect, minT, maxT;
 
   dot.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     e.preventDefault();
     dot.setPointerCapture(e.pointerId);
     active = true;
+    hasDragged = false;
     trackRect = markerEl.parentElement.getBoundingClientRect();
     const p = state.projects.find(x => x.id === projectId);
     minT = +new Date(p.timelineStart);
@@ -85,8 +91,11 @@ function attachDrag(dot, markerEl, projectId, markerId) {
 
   dot.addEventListener('pointermove', e => {
     if (!active) return;
+    hasDragged = true;
     const pct = calcPct(e.clientX, trackRect);
     markerEl.style.left = pct + '%';
+    const tooltip = markerEl.querySelector('.marker-tooltip');
+    if (tooltip) tooltip.textContent = fmtDate(pctToDate(pct, minT, maxT));
     const di = markerEl.querySelector('.marker-date-input');
     if (di) di.value = pctToDate(pct, minT, maxT);
   });
@@ -96,15 +105,25 @@ function attachDrag(dot, markerEl, projectId, markerId) {
     active = false;
     markerEl.classList.remove('dragging');
     document.body.style.userSelect = '';
-    updateMarker(projectId, markerId, {
-      date: pctToDate(calcPct(e.clientX, trackRect), minT, maxT)
-    });
+    if (hasDragged) {
+      updateMarker(projectId, timelineId, markerId, {
+        date: pctToDate(calcPct(e.clientX, trackRect), minT, maxT)
+      });
+    }
   });
 
   dot.addEventListener('pointercancel', () => {
     active = false;
     markerEl.classList.remove('dragging');
     document.body.style.userSelect = '';
+  });
+
+  dot.addEventListener('click', e => {
+    if (hasDragged) { hasDragged = false; return; }
+    e.stopPropagation();
+    const wasEditing = markerEl.classList.contains('editing');
+    document.querySelectorAll('.marker.editing').forEach(m => m.classList.remove('editing'));
+    if (!wasEditing) markerEl.classList.add('editing');
   });
 }
 
@@ -119,7 +138,11 @@ function addProject() {
     timelineStart: defaultStart(),
     timelineEnd: defaultEnd(),
     budget: { total: 0, used: 0 },
-    markers: [{ id: genId(), label: 'Start', date: today, color: COLORS[0] }]
+    timelines: [{
+      id: genId(),
+      name: 'Zeitleiste 1',
+      markers: [{ id: genId(), label: 'Start', date: today, color: COLORS[0] }]
+    }]
   });
   saveState();
   render();
@@ -139,29 +162,48 @@ function updateBudget(projectId, field, rawValue) {
   render();
 }
 
-function addMarker(projectId) {
+function addTimeline(projectId) {
   const p = state.projects.find(x => x.id === projectId);
   if (!p) return;
+  p.timelines.push({ id: genId(), name: `Zeitleiste ${p.timelines.length + 1}`, markers: [] });
+  saveState();
+  render();
+}
+
+function removeTimeline(projectId, timelineId) {
+  const p = state.projects.find(x => x.id === projectId);
+  if (!p || p.timelines.length <= 1) return;
+  p.timelines = p.timelines.filter(t => t.id !== timelineId);
+  saveState();
+  render();
+}
+
+function addMarker(projectId, timelineId) {
+  const p = state.projects.find(x => x.id === projectId);
+  const tl = p?.timelines.find(t => t.id === timelineId);
+  if (!tl) return;
   const today = new Date().toISOString().slice(0, 10);
-  const used = new Set(p.markers.map(m => m.color));
-  const color = COLORS.find(c => !used.has(c)) ?? COLORS[p.markers.length % COLORS.length];
-  p.markers.push({ id: genId(), label: 'Meilenstein', date: today, color });
+  const used = new Set(tl.markers.map(m => m.color));
+  const color = COLORS.find(c => !used.has(c)) ?? COLORS[tl.markers.length % COLORS.length];
+  tl.markers.push({ id: genId(), label: 'Meilenstein', date: today, color });
   saveState();
   render();
 }
 
-function removeMarker(projectId, markerId) {
+function removeMarker(projectId, timelineId, markerId) {
   const p = state.projects.find(x => x.id === projectId);
-  if (!p) return;
-  p.markers = p.markers.filter(m => m.id !== markerId);
+  const tl = p?.timelines.find(t => t.id === timelineId);
+  if (!tl) return;
+  tl.markers = tl.markers.filter(m => m.id !== markerId);
   saveState();
   render();
 }
 
-function updateMarker(projectId, markerId, patch) {
+function updateMarker(projectId, timelineId, markerId, patch) {
   const p = state.projects.find(x => x.id === projectId);
-  if (!p) return;
-  const m = p.markers.find(x => x.id === markerId);
+  const tl = p?.timelines.find(t => t.id === timelineId);
+  if (!tl) return;
+  const m = tl.markers.find(x => x.id === markerId);
   if (m) Object.assign(m, patch);
   saveState();
   render();
@@ -295,9 +337,65 @@ function renderTimelineBounds(p) {
   return row;
 }
 
+// ── Render: date ruler ───────────────────────────────────────
+
+function renderDateRuler(p) {
+  const ruler = document.createElement('div');
+  ruler.className = 'date-ruler';
+
+  const allDates = [...new Set(
+    p.timelines.flatMap(tl => tl.markers.map(m => m.date))
+  )].filter(Boolean).sort();
+
+  const minT = +new Date(p.timelineStart);
+  const maxT = +new Date(p.timelineEnd);
+  if (isNaN(minT) || isNaN(maxT) || maxT <= minT) return ruler;
+
+  allDates.forEach(date => {
+    const t = +new Date(date);
+    if (isNaN(t)) return;
+    const left = PADDING + ((t - minT) / (maxT - minT)) * (100 - 2 * PADDING);
+    if (left < 0 || left > 100) return;
+
+    const tick = document.createElement('div');
+    tick.className = 'ruler-tick';
+    tick.style.left = left + '%';
+
+    const label = document.createElement('span');
+    label.className = 'ruler-label';
+    label.textContent = new Date(date).toLocaleDateString('de-DE', {
+      day: '2-digit', month: '2-digit', year: '2-digit'
+    });
+    tick.append(label);
+    ruler.append(tick);
+  });
+
+  return ruler;
+}
+
+// ── Render: today line ───────────────────────────────────────
+
+function renderTodayLine(p) {
+  const minT = +new Date(p.timelineStart);
+  const maxT = +new Date(p.timelineEnd);
+  const todayT = +new Date(new Date().toISOString().slice(0, 10));
+  if (todayT < minT || todayT > maxT) return null;
+  const left = PADDING + ((todayT - minT) / (maxT - minT)) * (100 - 2 * PADDING);
+
+  const line = document.createElement('div');
+  line.className = 'today-line';
+  line.style.left = left + '%';
+
+  const lbl = document.createElement('span');
+  lbl.className = 'today-label';
+  lbl.textContent = 'Heute';
+  line.append(lbl);
+  return line;
+}
+
 // ── Render: single marker ────────────────────────────────────
 
-function renderMarker(p, m) {
+function renderMarker(p, tl, m) {
   const el = document.createElement('div');
   el.className = 'marker';
   el.style.left = m.left + '%';
@@ -307,6 +405,10 @@ function renderMarker(p, m) {
   dot.style.backgroundColor = m.color;
   dot.style.outline = `2.5px solid ${m.color}`;
   dot.style.outlineOffset = '2px';
+
+  const tooltip = document.createElement('span');
+  tooltip.className = 'marker-tooltip';
+  tooltip.textContent = fmtDate(m.date);
 
   const body = document.createElement('div');
   body.className = 'marker-body';
@@ -319,7 +421,8 @@ function renderMarker(p, m) {
   labelInput.style.color = m.color;
   labelInput.addEventListener('input', e => {
     const proj = state.projects.find(x => x.id === p.id);
-    const mark = proj?.markers.find(x => x.id === m.id);
+    const timeline = proj?.timelines.find(x => x.id === tl.id);
+    const mark = timeline?.markers.find(x => x.id === m.id);
     if (mark) { mark.label = e.target.value; saveState(); }
   });
 
@@ -327,7 +430,7 @@ function renderMarker(p, m) {
   dateInput.type = 'date';
   dateInput.className = 'marker-date-input';
   dateInput.value = m.date;
-  dateInput.addEventListener('change', e => updateMarker(p.id, m.id, { date: e.target.value }));
+  dateInput.addEventListener('change', e => updateMarker(p.id, tl.id, m.id, { date: e.target.value }));
 
   const colorPicker = document.createElement('div');
   colorPicker.className = 'color-picker';
@@ -336,7 +439,10 @@ function renderMarker(p, m) {
     chip.className = 'color-chip' + (c === m.color ? ' active' : '');
     chip.style.backgroundColor = c;
     chip.title = c;
-    chip.addEventListener('mousedown', e => { e.preventDefault(); updateMarker(p.id, m.id, { color: c }); });
+    chip.addEventListener('mousedown', e => {
+      e.preventDefault();
+      updateMarker(p.id, tl.id, m.id, { color: c });
+    });
     colorPicker.append(chip);
   });
 
@@ -344,44 +450,85 @@ function renderMarker(p, m) {
   removeBtn.className = 'btn-icon remove-marker-btn';
   removeBtn.title = 'Meilenstein entfernen';
   removeBtn.textContent = '✕';
-  removeBtn.addEventListener('mousedown', e => { e.preventDefault(); removeMarker(p.id, m.id); });
+  removeBtn.addEventListener('mousedown', e => {
+    e.preventDefault();
+    removeMarker(p.id, tl.id, m.id);
+  });
 
   body.append(labelInput, dateInput, colorPicker, removeBtn);
-  el.append(dot, body);
+  el.append(dot, tooltip, body);
 
-  attachDrag(dot, el, p.id, m.id);
+  attachDrag(dot, el, p.id, tl.id, m.id);
   return el;
 }
 
-// ── Render: timeline ─────────────────────────────────────────
+// ── Render: single timeline row ──────────────────────────────
+
+function renderSingleTimeline(p, tl) {
+  const row = document.createElement('div');
+  row.className = 'tl-row';
+
+  const header = document.createElement('div');
+  header.className = 'tl-header';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'tl-name-input';
+  nameInput.value = tl.name;
+  nameInput.placeholder = 'Zeitleiste benennen…';
+  nameInput.addEventListener('input', e => {
+    const proj = state.projects.find(x => x.id === p.id);
+    const timeline = proj?.timelines.find(x => x.id === tl.id);
+    if (timeline) { timeline.name = e.target.value; saveState(); }
+  });
+
+  const addMarkerBtn = document.createElement('button');
+  addMarkerBtn.className = 'add-marker-btn';
+  addMarkerBtn.textContent = '+ Meilenstein';
+  addMarkerBtn.addEventListener('click', () => addMarker(p.id, tl.id));
+
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'btn-icon';
+  removeBtn.title = 'Zeitleiste entfernen';
+  removeBtn.textContent = '✕';
+  removeBtn.style.visibility = p.timelines.length > 1 ? 'visible' : 'hidden';
+  removeBtn.addEventListener('mousedown', e => {
+    e.preventDefault();
+    removeTimeline(p.id, tl.id);
+  });
+
+  header.append(nameInput, addMarkerBtn, removeBtn);
+
+  const track = document.createElement('div');
+  track.className = 'timeline-track';
+
+  const todayLine = renderTodayLine(p);
+  if (todayLine) track.append(todayLine);
+
+  calcMarkerPositions(tl.markers, p.timelineStart, p.timelineEnd)
+    .forEach(m => track.append(renderMarker(p, tl, m)));
+
+  row.append(header, track);
+  return row;
+}
+
+// ── Render: timeline section ─────────────────────────────────
 
 function renderTimeline(p) {
   const section = document.createElement('div');
   section.className = 'timeline-section';
 
-  const wrapper = document.createElement('div');
-  wrapper.className = 'timeline-wrapper';
+  section.append(renderTimelineBounds(p));
+  section.append(renderDateRuler(p));
 
-  const track = document.createElement('div');
-  track.className = 'timeline-track';
+  p.timelines.forEach(tl => section.append(renderSingleTimeline(p, tl)));
 
-  if (p.markers.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'timeline-empty';
-    empty.textContent = 'Noch keine Meilensteine vorhanden.';
-    wrapper.append(renderTimelineBounds(p), empty);
-  } else {
-    calcMarkerPositions(p.markers, p.timelineStart, p.timelineEnd)
-      .forEach(m => track.append(renderMarker(p, m)));
-    wrapper.append(renderTimelineBounds(p), track);
-  }
+  const addTlBtn = document.createElement('button');
+  addTlBtn.className = 'add-timeline-btn';
+  addTlBtn.textContent = '+ Zeitleiste';
+  addTlBtn.addEventListener('click', () => addTimeline(p.id));
+  section.append(addTlBtn);
 
-  const addBtn = document.createElement('button');
-  addBtn.className = 'add-marker-btn';
-  addBtn.textContent = '+ Meilenstein';
-  addBtn.addEventListener('click', () => addMarker(p.id));
-
-  section.append(wrapper, addBtn);
   return section;
 }
 
@@ -410,6 +557,15 @@ function render() {
 
   state.projects.forEach(p => container.append(renderProject(p)));
 }
+
+// ── Global: close editing panels on outside click ────────────
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.marker')) {
+    document.querySelectorAll('.marker.editing')
+      .forEach(m => m.classList.remove('editing'));
+  }
+});
 
 // ── Init ─────────────────────────────────────────────────────
 

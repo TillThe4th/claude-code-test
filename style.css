@@ -82,6 +82,7 @@ body {
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: var(--shadow);
+  overflow: visible;
 }
 
 /* ── Project header ──────────────────────────────── */
@@ -138,13 +139,12 @@ body {
   color: var(--muted);
   transition: color .15s, background .15s;
   line-height: 1;
+  flex-shrink: 0;
 }
 .btn-icon:hover { color: var(--warn); background: #fce4e4; }
 
 /* ── Budget section ──────────────────────────────── */
-.budget-section {
-  margin-bottom: 1.75rem;
-}
+.budget-section { margin-bottom: 1.75rem; }
 
 .budget-inputs {
   display: flex;
@@ -208,12 +208,12 @@ body {
 /* ── Timeline section ────────────────────────────── */
 .timeline-section { }
 
-/* Timeline date bounds row */
+/* Timeline date bounds */
 .timeline-bounds {
   display: flex;
   gap: 1.5rem;
   align-items: center;
-  margin-bottom: .75rem;
+  margin-bottom: .5rem;
   flex-wrap: wrap;
 }
 
@@ -238,27 +238,83 @@ body {
 }
 .tl-bound-input:focus { border-color: var(--accent); background: #fff; }
 
-.timeline-wrapper {
-  padding: 18px 0 128px;
+/* ── Date ruler ──────────────────────────────────── */
+.date-ruler {
   position: relative;
+  height: 30px;
+  margin-bottom: .25rem;
 }
 
-.timeline-track {
-  position: relative;
-  height: 4px;
-  background: var(--tl-track);
-  border-radius: 2px;
-  overflow: visible;
+.ruler-tick {
+  position: absolute;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.timeline-empty {
+.ruler-tick::before {
+  content: '';
+  width: 1px;
+  height: 6px;
+  background: #ccc;
+  flex-shrink: 0;
+}
+
+.ruler-label {
+  font-size: .625rem;
+  color: #bbb;
+  white-space: nowrap;
+  margin-top: 2px;
+  letter-spacing: .01em;
+}
+
+/* ── Timeline rows ───────────────────────────────── */
+.tl-row {
+  margin-bottom: 1.25rem;
+  padding-bottom: 16px; /* clearance for tooltip below track */
+}
+
+.tl-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .35rem;
+}
+
+.tl-name-input {
+  flex: 1;
   font-size: .8125rem;
+  font-weight: 600;
   color: var(--muted);
-  font-style: italic;
-  padding: .75rem 0;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  outline: none;
+  padding: .1rem 0;
+  transition: border-color .15s;
 }
+.tl-name-input:hover,
+.tl-name-input:focus { border-bottom-color: var(--border); color: var(--text); }
 
 .add-marker-btn {
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: .75rem;
+  padding: .2rem .6rem;
+  cursor: pointer;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.add-marker-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(21,101,192,.04);
+}
+
+.add-timeline-btn {
   background: none;
   border: 1px dashed var(--border);
   border-radius: 6px;
@@ -267,12 +323,43 @@ body {
   padding: .3rem .85rem;
   cursor: pointer;
   transition: all .15s;
-  margin-top: .5rem;
+  margin-top: .25rem;
 }
-.add-marker-btn:hover {
+.add-timeline-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
   background: rgba(21,101,192,.04);
+}
+
+/* ── Timeline track ──────────────────────────────── */
+.timeline-track {
+  position: relative;
+  height: 4px;
+  background: var(--tl-track);
+  border-radius: 2px;
+  overflow: visible;
+}
+
+/* ── Today line ──────────────────────────────────── */
+.today-line {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  border-left: 2px dashed #c0c0c0;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.today-label {
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: .6rem;
+  color: #bbb;
+  white-space: nowrap;
+  letter-spacing: .02em;
 }
 
 /* ── Markers ─────────────────────────────────────── */
@@ -280,66 +367,92 @@ body {
   position: absolute;
   top: 0;
   transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   z-index: 1;
 }
+
 .marker:hover,
-.marker:focus-within { z-index: 10; }
+.marker.editing,
+.marker.dragging { z-index: 20; }
 
 .marker-dot {
   display: block;
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  flex-shrink: 0;
-  margin-top: -6px; /* centers 16px dot on 4px track: (16-4)/2 */
+  margin-top: -6px;
   border: 2px solid #fff;
   cursor: grab;
-  transition: transform .15s, box-shadow .15s;
+  transition: transform .15s;
+  position: relative;
 }
-.marker:hover .marker-dot,
-.marker:focus-within .marker-dot { transform: scale(1.25); }
+.marker:hover .marker-dot { transform: scale(1.2); }
 
-.marker.dragging { z-index: 20; }
 .marker.dragging .marker-dot {
   cursor: grabbing;
   transform: scale(1.4);
   box-shadow: 0 4px 14px rgba(0,0,0,.25);
 }
 
+/* Hover tooltip — date only */
+.marker-tooltip {
+  position: absolute;
+  top: 14px; /* below dot: (-6px offset + 16px height) + 4px gap */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30,30,30,.82);
+  color: #fff;
+  font-size: .65rem;
+  padding: 3px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .12s;
+}
+.marker:hover .marker-tooltip,
+.marker.dragging .marker-tooltip { opacity: 1; }
+.marker.editing .marker-tooltip { opacity: 0; }
+
+/* Editing panel — opens on click */
 .marker-body {
-  display: flex;
+  display: none;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding-top: 8px;
-  min-width: 112px;
+  gap: 5px;
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .625rem .75rem;
+  z-index: 30;
+  box-shadow: 0 4px 20px rgba(0,0,0,.12);
+  min-width: 148px;
 }
+.marker.editing .marker-body { display: flex; }
 
 .marker-label-input {
-  width: 112px;
+  width: 120px;
   border: none;
-  border-bottom: 1.5px solid transparent;
+  border-bottom: 1.5px solid var(--border);
   background: transparent;
-  font-size: .75rem;
+  font-size: .8rem;
   font-weight: 600;
   color: var(--text);
   text-align: center;
   outline: none;
-  padding: 0 2px 1px;
-  transition: border-color .15s;
+  padding: 0 2px 2px;
 }
-.marker-label-input:hover,
-.marker-label-input:focus { border-bottom-color: currentColor; }
+.marker-label-input:focus { border-bottom-color: var(--accent); }
 
 .marker-date-input {
-  width: 130px;
+  width: 134px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg);
-  font-size: .6875rem;
+  font-size: .7rem;
   color: var(--text);
   padding: .2rem .35rem;
   outline: none;
@@ -352,7 +465,6 @@ body {
 .color-picker {
   display: flex;
   gap: 4px;
-  margin-top: 2px;
 }
 
 .color-chip {
@@ -373,9 +485,7 @@ body {
 
 .remove-marker-btn {
   font-size: .65rem;
-  opacity: 0;
-  transition: opacity .15s, color .15s;
   margin-top: 1px;
+  color: var(--muted);
 }
-.marker:hover .remove-marker-btn,
-.marker:focus-within .remove-marker-btn { opacity: 1; }
+.remove-marker-btn:hover { color: var(--warn); background: #fce4e4; }
