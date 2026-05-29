@@ -445,7 +445,7 @@ body {
   box-shadow: 0 4px 14px rgba(0,0,0,.25);
 }
 
-/* Hover tooltip — date only */
+/* Hover tooltip — name + date */
 .marker-tooltip {
   position: absolute;
   top: 14px;
@@ -454,16 +454,30 @@ body {
   background: var(--accent);
   color: #fff;
   font-size: .65rem;
-  padding: 3px 7px;
+  padding: 4px 8px;
   border-radius: 4px;
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
   transition: opacity .12s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
 }
 .marker:hover .marker-tooltip,
 .marker.dragging .marker-tooltip { opacity: 1; }
 .marker.editing .marker-tooltip { opacity: 0; }
+
+.marker-tooltip-label {
+  font-weight: 600;
+  font-size: .68rem;
+}
+
+.marker-tooltip-date {
+  opacity: .75;
+  font-size: .6rem;
+}
 
 /* Editing panel — opens on click */
 .marker-body {
@@ -541,3 +555,42 @@ body {
   color: var(--muted);
 }
 .remove-marker-btn:hover { color: var(--warn); background: #fce4e4; }
+
+/* ── Legend ──────────────────────────────────────── */
+.project-legend {
+  margin-top: 1rem;
+  padding-top: .75rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem .75rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .75rem;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: .2rem .6rem .2rem .4rem;
+}
+
+.legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.legend-date {
+  color: var(--muted);
+  font-size: .7rem;
+}

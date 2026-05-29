@@ -1,7 +1,7 @@
 'use strict';
 
 const STORAGE_KEY = 'project-tracker-v1';
-const COLORS = ['#11555A', '#4a8fa3', '#2d8c5e', '#B85B24', '#8c7a3a', '#6b3a2a'];
+const COLORS = ['#0a7a80', '#1e7ec4', '#1aab6a', '#d4601a', '#c4a018', '#b03020'];
 const PADDING = 10;
 
 let state = { projects: [] };
@@ -103,8 +103,8 @@ function attachDrag(dot, markerEl, projectId, timelineId, markerId) {
     hasDragged = true;
     const pct = calcPct(e.clientX, trackRect);
     markerEl.style.left = pct + '%';
-    const tooltip = markerEl.querySelector('.marker-tooltip');
-    if (tooltip) tooltip.textContent = fmtDate(pctToDate(pct, minT, maxT));
+    const tooltipDate = markerEl.querySelector('.marker-tooltip-date');
+    if (tooltipDate) tooltipDate.textContent = fmtDate(pctToDate(pct, minT, maxT));
     const di = markerEl.querySelector('.marker-date-input');
     if (di) di.value = pctToDate(pct, minT, maxT);
   });
@@ -465,9 +465,15 @@ function renderMarker(p, tl, m) {
   dot.style.outline = `2.5px solid ${m.color}`;
   dot.style.outlineOffset = '2px';
 
-  const tooltip = document.createElement('span');
+  const tooltip = document.createElement('div');
   tooltip.className = 'marker-tooltip';
-  tooltip.textContent = fmtDate(m.date);
+  const tooltipLabel = document.createElement('span');
+  tooltipLabel.className = 'marker-tooltip-label';
+  tooltipLabel.textContent = m.label;
+  const tooltipDate = document.createElement('span');
+  tooltipDate.className = 'marker-tooltip-date';
+  tooltipDate.textContent = fmtDate(m.date);
+  tooltip.append(tooltipLabel, tooltipDate);
 
   const body = document.createElement('div');
   body.className = 'marker-body';
@@ -591,12 +597,46 @@ function renderTimeline(p) {
   return section;
 }
 
+// ── Render: legend ───────────────────────────────────────────
+
+function renderLegend(p) {
+  const allMarkers = p.timelines.flatMap(tl => tl.markers);
+  if (!allMarkers.length) return null;
+
+  const legend = document.createElement('div');
+  legend.className = 'project-legend';
+
+  allMarkers.forEach(m => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+
+    const dot = document.createElement('span');
+    dot.className = 'legend-dot';
+    dot.style.background = m.color;
+
+    const label = document.createElement('span');
+    label.className = 'legend-label';
+    label.textContent = m.label || '—';
+
+    const date = document.createElement('span');
+    date.className = 'legend-date';
+    date.textContent = m.date ? fmtDate(m.date) : '';
+
+    item.append(dot, label, date);
+    legend.append(item);
+  });
+
+  return legend;
+}
+
 // ── Render: project card ─────────────────────────────────────
 
 function renderProject(p) {
   const card = document.createElement('article');
   card.className = 'project-card';
   card.append(renderProjectHeader(p), renderBudget(p), renderTimeline(p));
+  const legend = renderLegend(p);
+  if (legend) card.append(legend);
   return card;
 }
 
