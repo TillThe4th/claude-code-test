@@ -243,12 +243,10 @@ body {
 
 .budget-bar-fill {
   height: 100%;
-  background: var(--ok);
   border-radius: 4px;
-  transition: width .35s ease, background .25s;
+  transition: width .35s ease, background .4s ease;
   min-width: 0;
 }
-.budget-bar-fill.over { background: var(--warn); }
 
 .budget-pct {
   font-size: .75rem;

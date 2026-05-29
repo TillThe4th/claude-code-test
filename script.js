@@ -1,7 +1,7 @@
 'use strict';
 
 const STORAGE_KEY = 'project-tracker-v1';
-const COLORS = ['#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4'];
+const COLORS = ['#11555A', '#4a8fa3', '#2d8c5e', '#B85B24', '#8c7a3a', '#6b3a2a'];
 const PADDING = 10;
 
 let state = { projects: [] };
@@ -22,6 +22,13 @@ function defaultEnd() {
 
 function fmtDate(isoDate) {
   return new Date(isoDate).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function budgetColor(pct) {
+  const g = [45, 140, 94];   // #2d8c5e — gedämpftes Grün
+  const r = [139, 36, 36];   // #8b2424 — Dunkelrot
+  const t = Math.max(0, Math.min(1, pct / 100));
+  return `rgb(${Math.round(g[0]+(r[0]-g[0])*t)},${Math.round(g[1]+(r[1]-g[1])*t)},${Math.round(g[2]+(r[2]-g[2])*t)})`;
 }
 
 function loadState() {
@@ -346,8 +353,9 @@ function renderBudget(p) {
   const track = document.createElement('div');
   track.className = 'budget-bar-track';
   const fill = document.createElement('div');
-  fill.className = 'budget-bar-fill' + (overBudget ? ' over' : '');
+  fill.className = 'budget-bar-fill';
   fill.style.width = pct + '%';
+  fill.style.background = budgetColor(pct);
   track.append(fill);
 
   const pctLabel = document.createElement('div');
