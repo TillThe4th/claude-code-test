@@ -1,42 +1,37 @@
-# Claude Code – Git & GitHub Workflow
+# CLAUDE.md
 
-## Git-Pflicht nach jeder Änderung
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Nach **jeder abgeschlossenen Coding-Aufgabe** (neue Datei, Bugfix, Feature, Refactoring):
+## Entwicklungsumgebung
 
-1. Stage die betroffenen Dateien gezielt (`git add <datei>`) oder alle (`git add -A`)
-2. Erstelle einen aussagekräftigen Commit:
-   ```
-   git commit -m "typ: kurze Beschreibung was und warum"
-   ```
-3. Push direkt zu GitHub:
-   ```
-   git push
-   ```
+Kein Build-System, kein Package-Manager — reines HTML/CSS/JS-Projekt. Zum Entwickeln einfach `index.html` im Browser öffnen oder einen lokalen Dev-Server starten:
 
-### Commit-Typen
-- `feat:` — neues Feature
-- `fix:` — Bugfix
-- `style:` — CSS/Layout-Änderungen
-- `refactor:` — Umstrukturierung ohne Funktionsänderung
-- `docs:` — Dokumentation
-- `chore:` — Build, Konfiguration, Dependencies
+```bash
+# Mit Python (überall verfügbar)
+python -m http.server 8080
 
-### Beispiele
-```
-feat: Navigationsleiste mit mobilem Hamburger-Menü
-fix: Formular-Validierung bei leerem E-Mail-Feld
-style: Dark-Mode-Farbschema für Header angepasst
+# Mit Node.js npx
+npx serve .
+
+# Mit VS Code: Live Server Extension → "Open with Live Server"
 ```
 
-## GitHub-Workflow
+## Projektstruktur
 
-- Hauptbranch: `main`
-- Feature-Branches: `feature/beschreibung`
-- PRs via `gh pr create` wenn sinnvoll (bei größeren Features)
-- Niemals direkt in `main` pushen ohne Test
+Einstiegspunkt ist `index.html`. CSS in `style.css`, Logik in `script.js`. Neue Module als separate `.js`-Dateien anlegen und per `<script src="...">` oder ES-Module (`type="module"`) einbinden.
 
-## Repo
+## Git & GitHub Workflow
 
-- Remote: `origin` → `https://github.com/TillThe4th/claude-code-test`
-- GitHub-Account: `TillThe4th`
+Nach **jeder abgeschlossenen Coding-Aufgabe** committen und pushen:
+
+```bash
+git add <datei>          # oder git add -A für alles
+git commit -m "typ: was und warum"
+git push
+```
+
+**Commit-Typen:** `feat:` · `fix:` · `style:` · `refactor:` · `docs:` · `chore:`
+
+- Hauptbranch: `main` — direkt pushen nur für kleine Änderungen
+- Feature-Branches `feature/beschreibung` + `gh pr create` bei größeren Änderungen
+- Remote: `https://github.com/TillThe4th/claude-code-test`
