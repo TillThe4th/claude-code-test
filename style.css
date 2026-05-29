@@ -1,16 +1,16 @@
 :root {
-  --bg: #f0f2f5;
+  --bg: #eef3f3;
   --card: #ffffff;
-  --border: #e0e0e0;
-  --text: #1a1a1a;
-  --muted: #888;
-  --accent: #1565c0;
-  --accent-h: #0d47a1;
-  --ok: #43a047;
-  --warn: #e53935;
-  --bar-track: #e0e0e0;
-  --tl-track: #d0d0d0;
-  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.05);
+  --border: #c1d3d4;
+  --text: #1a2e2f;
+  --muted: #5a7c7e;
+  --accent: #11555a;
+  --accent-h: #0c3d41;
+  --ok: #b85b24;
+  --warn: #c0392b;
+  --bar-track: #e4ecec;
+  --tl-track: #c1d3d4;
+  --shadow: 0 1px 3px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.05);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -29,25 +29,24 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 2rem;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
+  background: var(--accent);
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  box-shadow: 0 2px 8px rgba(17,85,90,.3);
 }
 
 .app-header h1 {
   font-size: 1.125rem;
   font-weight: 700;
-  color: var(--accent);
+  color: #ffffff;
   letter-spacing: -.01em;
 }
 
 #add-project-btn {
-  background: var(--accent);
+  background: rgba(255,255,255,.15);
   color: #fff;
-  border: none;
+  border: 1px solid rgba(255,255,255,.35);
   padding: .45rem 1rem;
   border-radius: 6px;
   font-size: .875rem;
@@ -55,7 +54,7 @@ body {
   cursor: pointer;
   transition: background .15s;
 }
-#add-project-btn:hover { background: var(--accent-h); }
+#add-project-btn:hover { background: rgba(255,255,255,.28); }
 
 /* ── Main container ──────────────────────────────── */
 #projects-container {
@@ -79,6 +78,7 @@ body {
 .project-card {
   background: var(--card);
   border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: var(--shadow);
@@ -89,8 +89,45 @@ body {
 .project-header {
   display: flex;
   align-items: flex-start;
-  gap: .5rem;
+  gap: .75rem;
   margin-bottom: 1rem;
+}
+
+/* ── Logo upload area ────────────────────────────── */
+.project-logo-area {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  border: 2px dashed var(--border);
+  cursor: pointer;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color .15s, background .15s;
+  background: var(--bg);
+  position: relative;
+}
+.project-logo-area:hover {
+  border-color: var(--accent);
+  background: rgba(17,85,90,.06);
+}
+.project-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.project-logo-placeholder {
+  font-size: .6rem;
+  color: var(--muted);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.5;
+  user-select: none;
+  pointer-events: none;
 }
 
 .project-titles {
@@ -128,6 +165,21 @@ body {
 }
 .project-subtitle-input:hover,
 .project-subtitle-input:focus { border-bottom-color: var(--border); }
+
+.project-responsible-input {
+  width: 100%;
+  font-size: .8125rem;
+  color: var(--accent);
+  font-weight: 500;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  padding: .15rem 0;
+  outline: none;
+  transition: border-color .15s;
+}
+.project-responsible-input:hover,
+.project-responsible-input:focus { border-bottom-color: var(--border); }
 
 .btn-icon {
   background: none;
@@ -257,13 +309,13 @@ body {
   content: '';
   width: 1px;
   height: 6px;
-  background: #ccc;
+  background: var(--border);
   flex-shrink: 0;
 }
 
 .ruler-label {
   font-size: .625rem;
-  color: #bbb;
+  color: var(--muted);
   white-space: nowrap;
   margin-top: 2px;
   letter-spacing: .01em;
@@ -272,7 +324,7 @@ body {
 /* ── Timeline rows ───────────────────────────────── */
 .tl-row {
   margin-bottom: 1.25rem;
-  padding-bottom: 16px; /* clearance for tooltip below track */
+  padding-bottom: 16px;
 }
 
 .tl-header {
@@ -311,7 +363,7 @@ body {
 .add-marker-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(21,101,192,.04);
+  background: rgba(17,85,90,.05);
 }
 
 .add-timeline-btn {
@@ -328,7 +380,7 @@ body {
 .add-timeline-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(21,101,192,.04);
+  background: rgba(17,85,90,.05);
 }
 
 /* ── Timeline track ──────────────────────────────── */
@@ -345,10 +397,11 @@ body {
   position: absolute;
   top: -6px;
   bottom: -6px;
-  border-left: 2px dashed #c0c0c0;
+  border-left: 2px dashed var(--accent);
   transform: translateX(-50%);
   pointer-events: none;
   z-index: 5;
+  opacity: .5;
 }
 
 .today-label {
@@ -357,9 +410,10 @@ body {
   left: 50%;
   transform: translateX(-50%);
   font-size: .6rem;
-  color: #bbb;
+  color: var(--accent);
   white-space: nowrap;
   letter-spacing: .02em;
+  font-weight: 600;
 }
 
 /* ── Markers ─────────────────────────────────────── */
@@ -396,10 +450,10 @@ body {
 /* Hover tooltip — date only */
 .marker-tooltip {
   position: absolute;
-  top: 14px; /* below dot: (-6px offset + 16px height) + 4px gap */
+  top: 14px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(30,30,30,.82);
+  background: var(--accent);
   color: #fff;
   font-size: .65rem;
   padding: 3px 7px;
@@ -428,7 +482,7 @@ body {
   border-radius: 8px;
   padding: .625rem .75rem;
   z-index: 30;
-  box-shadow: 0 4px 20px rgba(0,0,0,.12);
+  box-shadow: 0 4px 20px rgba(17,85,90,.15);
   min-width: 148px;
 }
 .marker.editing .marker-body { display: flex; }

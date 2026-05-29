@@ -31,6 +31,8 @@ function loadState() {
   } catch (_) { state = { projects: [] }; }
   state.projects.forEach(p => {
     p.subtitle      ??= '';
+    p.responsible   ??= '';
+    p.logo          ??= null;
     p.timelineStart ??= defaultStart();
     p.timelineEnd   ??= defaultEnd();
     if (!p.timelines) {
@@ -135,6 +137,8 @@ function addProject() {
     id: genId(),
     name: 'Neues Projekt',
     subtitle: '',
+    responsible: '',
+    logo: null,
     timelineStart: defaultStart(),
     timelineEnd: defaultEnd(),
     budget: { total: 0, used: 0 },
@@ -215,6 +219,43 @@ function renderProjectHeader(p) {
   const header = document.createElement('div');
   header.className = 'project-header';
 
+  // Logo upload area
+  const logoArea = document.createElement('div');
+  logoArea.className = 'project-logo-area';
+  logoArea.title = 'Klicken zum Logo hochladen';
+
+  const logoImg = document.createElement('img');
+  logoImg.className = 'project-logo-img';
+  if (p.logo) {
+    logoImg.src = p.logo;
+  } else {
+    logoImg.style.display = 'none';
+  }
+
+  const logoPlaceholder = document.createElement('span');
+  logoPlaceholder.className = 'project-logo-placeholder';
+  logoPlaceholder.textContent = 'Logo\nhochladen';
+  logoPlaceholder.style.display = p.logo ? 'none' : '';
+
+  const logoFileInput = document.createElement('input');
+  logoFileInput.type = 'file';
+  logoFileInput.accept = 'image/*';
+  logoFileInput.style.display = 'none';
+  logoFileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const proj = state.projects.find(x => x.id === p.id);
+      if (proj) { proj.logo = ev.target.result; saveState(); render(); }
+    };
+    reader.readAsDataURL(file);
+  });
+
+  logoArea.addEventListener('click', () => logoFileInput.click());
+  logoArea.append(logoImg, logoPlaceholder, logoFileInput);
+
+  // Text fields
   const titles = document.createElement('div');
   titles.className = 'project-titles';
 
@@ -238,7 +279,17 @@ function renderProjectHeader(p) {
     if (proj) { proj.subtitle = e.target.value; saveState(); }
   });
 
-  titles.append(nameInput, subtitleInput);
+  const responsibleInput = document.createElement('input');
+  responsibleInput.type = 'text';
+  responsibleInput.className = 'project-responsible-input';
+  responsibleInput.value = p.responsible;
+  responsibleInput.placeholder = 'Projektverantwortliche/r…';
+  responsibleInput.addEventListener('input', e => {
+    const proj = state.projects.find(x => x.id === p.id);
+    if (proj) { proj.responsible = e.target.value; saveState(); }
+  });
+
+  titles.append(nameInput, subtitleInput, responsibleInput);
 
   const removeBtn = document.createElement('button');
   removeBtn.className = 'btn-icon remove-project-btn';
@@ -246,7 +297,7 @@ function renderProjectHeader(p) {
   removeBtn.textContent = '✕';
   removeBtn.addEventListener('mousedown', e => { e.preventDefault(); removeProject(p.id); });
 
-  header.append(titles, removeBtn);
+  header.append(logoArea, titles, removeBtn);
   return header;
 }
 
